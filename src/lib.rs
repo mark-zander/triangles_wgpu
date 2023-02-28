@@ -1,6 +1,7 @@
 use std::iter;
 
 use wgpu::util::DeviceExt;
+use wgpu;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
@@ -12,164 +13,10 @@ use wasm_bindgen::prelude::*;
 
 use image::{RgbaImage, Rgba, DynamicImage};
 
+pub mod vertex;
+pub mod cli;
 mod texture;
-mod cube;
-mod grid;
-mod surf_rot;
-
-// #[repr(C)]
-// #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-// struct Vertex {
-//     position: [f32; 3],
-//     tex_coords: [f32; 2],
-// }
-
-// impl Vertex {
-//     fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-//         use std::mem;
-//         wgpu::VertexBufferLayout {
-//             array_stride: mem::size_of::<Vertex>() as wgpu::BufferAddress,
-//             step_mode: wgpu::VertexStepMode::Vertex,
-//             attributes: &[
-//                 wgpu::VertexAttribute {
-//                     offset: 0,
-//                     shader_location: 0,
-//                     format: wgpu::VertexFormat::Float32x3,
-//                 },
-//                 wgpu::VertexAttribute {
-//                     offset: mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
-//                     shader_location: 1,
-//                     format: wgpu::VertexFormat::Float32x2,
-//                 },
-//             ],
-//         }
-//     }
-// }
-
-// Three triangles
-// const VERTICES: &[Vertex] = &[
-//     Vertex {
-//         position: [-0.0868241, 0.49240386, 0.0],
-//         tex_coords: [0.4131759, 0.00759614],
-//     }, // A
-//     Vertex {
-//         position: [-0.49513406, 0.06958647, 0.0],
-//         tex_coords: [0.0048659444, 0.43041354],
-//     }, // B
-//     Vertex {
-//         position: [-0.21918549, -0.44939706, 0.0],
-//         tex_coords: [0.28081453, 0.949397],
-//     }, // C
-//     Vertex {
-//         position: [0.35966998, -0.3473291, 0.0],
-//         tex_coords: [0.85967, 0.84732914],
-//     }, // D
-//     Vertex {
-//         position: [0.44147372, 0.2347359, 0.0],
-//         tex_coords: [0.9414737, 0.2652641],
-//     }, // E
-// ];
-
-// const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4, /* padding */ 0];
-
-// Square
-// const VERTICES: &[Vertex] = &[
-//     Vertex {
-//         position: [-0.5, 0.5, 0.0],
-//         tex_coords: [0.0, 0.0],
-//     },
-//     Vertex {
-//         position: [-0.5, -0.5, 0.0],
-//         tex_coords: [0.0, 1.0],
-//     },
-//     Vertex {
-//         position: [0.5, -0.5, 0.0],
-//         tex_coords: [1.0, 1.0],
-//     },
-//     Vertex {
-//         position: [0.5, 0.5, 0.0],
-//         tex_coords: [1.0, 0.0],
-//     },
-// ];
-
-// const INDICES: &[u16] = &[0, 1, 3, 1, 2, 3]; // /* padding */ 0];
-
-// Cube
-// const VERTICES: &[Vertex] = &[
-//     Vertex {
-//         position: [-0.5, 0.5, 0.5],
-//         tex_coords: [0.0, 0.0],
-//     }, // 0
-//     Vertex {
-//         position: [-0.5, -0.5, 0.5],
-//         tex_coords: [0.0, 1.0],
-//     }, // 1
-//     Vertex {
-//         position: [0.5, 0.5, 0.5],
-//         tex_coords: [1.0, 0.0],
-//     }, // 2
-//     Vertex {
-//         position: [0.5, -0.5, 0.5],
-//         tex_coords: [1.0, 1.0],
-//     }, // 3
-//     Vertex {
-//         position: [0.5, 0.5, -0.5],
-//         tex_coords: [2.0, 0.0],
-//     }, // 4
-//     Vertex {
-//         position: [0.5, -0.5, -0.5],
-//         tex_coords: [2.0, 1.0],
-//     }, // 5
-//     Vertex {
-//         position: [-0.5, 0.5, -0.5],
-//         tex_coords: [3.0, 0.0],
-//     }, // 6
-//     Vertex {
-//         position: [-0.5, -0.5, -0.5],
-//         tex_coords: [3.0, 1.0],
-//     }, // 7
-
-//     Vertex {
-//         position: [-0.5, 0.5, 0.5],
-//         tex_coords: [0.0, 0.0],
-//     }, // 0
-//     Vertex {
-//         position: [-0.5, -0.5, 0.5],
-//         tex_coords: [0.0, 1.0],
-//     }, // 1
-//     Vertex {
-//         position: [0.5, 0.5, 0.5],
-//         tex_coords: [1.0, 0.0],
-//     }, // 2
-//     Vertex {
-//         position: [0.5, -0.5, 0.5],
-//         tex_coords: [1.0, 1.0],
-//     }, // 3
-//     Vertex {
-//         position: [0.5, 0.5, -0.5],
-//         tex_coords: [2.0, 0.0],
-//     }, // 4
-//     Vertex {
-//         position: [0.5, -0.5, -0.5],
-//         tex_coords: [2.0, 1.0],
-//     }, // 5
-//     Vertex {
-//         position: [-0.5, 0.5, -0.5],
-//         tex_coords: [3.0, 0.0],
-//     }, // 6
-//     Vertex {
-//         position: [-0.5, -0.5, -0.5],
-//         tex_coords: [3.0, 1.0],
-//     }, // 7
-    
-// ];
-
-// const INDICES: &[u16] =
-//     &[0, 1, 2, 1, 3, 2
-//     , 2, 3, 4, 3, 5, 4
-//     , 4, 5, 6, 5, 7, 6];
-
-// /* padding */ 0];
+mod geometry;
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -338,13 +185,23 @@ struct State {
 }
 
 impl State {
-    async fn new(window: &Window) -> Self {
+    async fn new(
+        window: &Window,
+        args: cli::Args
+    ) -> Self {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
-        let instance = wgpu::Instance::new(wgpu::Backends::all());
-        let surface = unsafe { instance.create_surface(window) };
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::all(),
+            dx12_shader_compiler: Default::default()
+            // dx12_shader_compiler: wgpu::Dx12Compiler::Fxc
+        });
+        let surface = (unsafe { instance.create_surface(window) })
+            .unwrap_or_else(|error|{
+                panic!("Error creating surface, {}", error.to_string())
+            });
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
@@ -357,7 +214,8 @@ impl State {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    features: wgpu::Features::empty(),
+                    // features: wgpu::Features::empty(),
+                    features: wgpu::Features::POLYGON_MODE_LINE,
                     // WebGL doesn't support all of wgpu's features, so if
                     // we're building for the web we'll have to disable some.
                     limits: if cfg!(target_arch = "wasm32") {
@@ -371,14 +229,35 @@ impl State {
             .await
             .unwrap();
 
+        // let config = wgpu::SurfaceConfiguration {
+        //     usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+        //     format: surface.get_supported_formats(&adapter)[0],
+        //     width: size.width,
+        //     height: size.height,
+        //     present_mode: wgpu::PresentMode::Fifo,
+        //     alpha_mode: wgpu::CompositeAlphaMode::Auto,
+        // };
+
+        let surface_caps = surface.get_capabilities(&adapter);
+        // Shader code in this tutorial assumes an sRGB surface texture. Using a different
+        // one will result all the colors coming out darker. If you want to support non
+        // sRGB surfaces, you'll need to account for that when drawing to the frame.
+        let surface_format = surface_caps.formats.iter()
+            .copied()
+            .filter(|f| f.describe().srgb)
+            .next()
+            .unwrap_or(surface_caps.formats[0]);
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_supported_formats(&adapter)[0],
+            format: surface_format,
             width: size.width,
             height: size.height,
-            present_mode: wgpu::PresentMode::Fifo,
-            alpha_mode: wgpu::CompositeAlphaMode::Auto,
+            present_mode: surface_caps.present_modes[0],
+            alpha_mode: surface_caps.alpha_modes[0],
+            view_formats: vec![],
         };
+
+
         surface.configure(&device, &config);
 
         let sizewire = 128;
@@ -386,12 +265,15 @@ impl State {
 
         let mut wires = RgbaImage::new(sizewire, sizewire);
 
+        // let rgba = Rgba([255, 255, 255, 255]);
+        let rgba = Rgba([0, 0, 0, 255]);
+
         for x in 0..sizewire {
-            wires.put_pixel(x, sizewire1 - x, Rgba([255, 255, 255, 255]));
-            wires.put_pixel(0, x, Rgba([255, 255, 255, 255]));
-            wires.put_pixel(x, 0, Rgba([255, 255, 255, 255]));
-            wires.put_pixel(sizewire1, x, Rgba([255, 255, 255, 255]));
-            wires.put_pixel(x, sizewire1, Rgba([255, 255, 255, 255]));
+            // wires.put_pixel(x, sizewire1 - x, rgba);
+            wires.put_pixel(0, x, rgba);
+            wires.put_pixel(x, 0, rgba);
+            wires.put_pixel(sizewire1, x, rgba);
+            wires.put_pixel(x, sizewire1, rgba);
         }
 
         let diffuse_texture =
@@ -504,7 +386,8 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[cube::Vertex::desc()],
+// Change this!
+                buffers: &[vertex::Vertex::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -521,11 +404,11 @@ impl State {
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
+                front_face: args.front_face,
+                cull_mode: args.cull_mode,
                 // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
                 // or Features::POLYGON_MODE_POINT
-                polygon_mode: wgpu::PolygonMode::Fill,
+                polygon_mode: args.polygon_mode,
                 // Requires Features::DEPTH_CLIP_CONTROL
                 unclipped_depth: false,
                 // Requires Features::CONSERVATIVE_RASTERIZATION
@@ -542,13 +425,9 @@ impl State {
             multiview: None,
         });
 
-        // let a_cube: (Vec<cube::Vertex>, Vec<u16>) = cube::make_cube();
-        // let (vertexes, indexes) = cube::make_cube();
-        // let (vertexes, indexes) = grid::make_zero();
-        // let (vertexes, indexes) = grid::make_sinc();
-        // let (vertexes, indexes) = surf_rot::cylinder();
-        let (vertexes, indexes) = surf_rot::sphere();
-    
+        let (vertexes, indexes) =
+            args.geometry.make();
+
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
             contents: bytemuck::cast_slice(&vertexes),
@@ -653,7 +532,7 @@ impl State {
 }
 
 #[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]
-pub async fn run() {
+pub async fn run(args: cli::Args) {
     cfg_if::cfg_if! {
         if #[cfg(target_arch = "wasm32")] {
             std::panic::set_hook(Box::new(console_error_panic_hook::hook));
@@ -686,7 +565,7 @@ pub async fn run() {
     }
 
     // State::new uses async code, so we're going to wait for it to finish
-    let mut state = State::new(&window).await;
+    let mut state = State::new(&window, args).await;
 
     event_loop.run(move |event, _, control_flow| {
         match event {

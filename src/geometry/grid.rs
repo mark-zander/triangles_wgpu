@@ -1,5 +1,5 @@
 use std::f32::consts;
-// use core::f32;
+use crate::vertex::Vertex;
 
 pub fn make_grid(xsize: u32, ysize: u32,
         xmin: f32, ymin: f32, xmax: f32, ymax: f32,
@@ -8,7 +8,7 @@ pub fn make_grid(xsize: u32, ysize: u32,
 
     let xstep = (xmax - xmin) / (xsize - 1) as f32;
     let ystep = (ymax - ymin) / (ysize - 1) as f32;
-    println!("xstep = {}, ystep = {}", xstep, ystep);
+    // println!("xstep = {}, ystep = {}", xstep, ystep);
     let mut vertexes: Vec<Vertex> = Vec::new();
     for iy in 0..ysize {
         let fy = iy as f32;
@@ -58,39 +58,30 @@ pub fn make_sinc() -> (Vec<Vertex>, Vec<u16>) {
 
 pub fn gauss(sigma: f32, mu: f32, x: f32, y: f32) -> f32 {
     let r = f32::sqrt(x * x + y * y);
-    f32::exp(-(r - mu).powi(2)) / (2. * sigma * sigma)
+    f32::exp(-(r - mu) * (r - mu) / (2. * sigma * sigma))
         / (sigma * f32::sqrt(2. * consts::PI))
 }
 
-// pub fn make_gauss() -> (Vec<Vertex>, Vec<u32>) {
-//     make_grid(50, 50, , 0.02, 1, 1, gauss(0.1, 0))
-// }
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct Vertex {
-    position: [f32; 3],
-    tex_coord: [f32; 2],
+fn gausser(x: f32, y: f32) -> f32 {
+    gauss(0.3, 0.0, x, y)
 }
 
-impl Vertex {
-    pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        use std::mem;
-        wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<Vertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    offset: 0,
-                    shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
-                    shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x2,
-                },
-            ],
-        }
-    }
+pub fn make_gauss() -> (Vec<Vertex>, Vec<u16>) {
+    make_grid(
+        21, 21,
+        -1.0, -1.0, 1.0, 1.0,
+        1.0, 1.0,
+        gausser)
+}
+
+pub fn hyperbolic_paraboloid(x: f32, y: f32) -> f32 {
+    x * x - y * y
+}
+
+pub fn make_hp() -> (Vec<Vertex>, Vec<u16>) {
+    make_grid(
+        21, 21,
+        -1.0, -1.0, 1.0, 1.0,
+        1.0, 1.0,
+        hyperbolic_paraboloid)
 }

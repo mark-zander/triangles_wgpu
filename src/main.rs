@@ -1,10 +1,8 @@
 use triangles_wgpu::run;
-
-mod cube;
-mod grid;
+use triangles_wgpu::cli;
 
 fn main() {
-    // println!("{:#?}", cube::make_cube());
-    // println!("{:#?}", grid::make_zero());
-    pollster::block_on(run());
+
+    pollster::block_on(run(cli::Args::new()));
+
 }
