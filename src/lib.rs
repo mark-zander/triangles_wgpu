@@ -15,6 +15,7 @@ use image::{RgbaImage, Rgba, DynamicImage};
 
 pub mod vertex;
 pub mod cli;
+// mod texture_wire;
 mod texture;
 mod geometry;
 
@@ -174,8 +175,9 @@ struct State {
     index_buffer: wgpu::Buffer,
     num_indices: u32,
     #[allow(dead_code)]
-    diffuse_texture: texture::Texture,
+    // diffuse_texture: texture_wire::Texture,
     diffuse_bind_group: wgpu::BindGroup,
+    ctab_bind_group: wgpu::BindGroup,
     // NEW!
     camera: Camera,
     camera_controller: CameraController,
@@ -260,6 +262,8 @@ impl State {
 
         surface.configure(&device, &config);
 
+        // Create wire texture
+
         let sizewire = 128;
         let sizewire1 = sizewire - 1;
 
@@ -278,51 +282,72 @@ impl State {
 
         let diffuse_texture =
             texture::Texture::from_image(&device, &queue,
-                &DynamicImage::ImageRgba8(wires), Some("wires")).unwrap();
+            &DynamicImage::ImageRgba8(wires), Some("Wire Frame")).unwrap();
 
+        let diffuse_bind_group_layout = diffuse_texture.bind_group_layout;
+        let diffuse_bind_group = diffuse_texture.bind_group;
 
+        // Create color table texture
 
+        let size_ctab = 6;
+        let mut ctab = RgbaImage::new(size_ctab, 1);
+
+        ctab.put_pixel(0, 0, Rgba([255, 0, 255, 255]));
+        ctab.put_pixel(1, 0, Rgba([0, 0, 255, 255]));
+        ctab.put_pixel(2, 0, Rgba([0, 255, 255, 255]));
+        ctab.put_pixel(3, 0, Rgba([0, 255, 0, 255]));
+        ctab.put_pixel(4, 0, Rgba([255, 255, 0, 255]));
+        ctab.put_pixel(5, 0, Rgba([255, 0, 0, 255]));
+
+        let ctab_texture =
+            texture::Texture::from_image(&device, &queue,
+            &DynamicImage::ImageRgba8(ctab), Some("Color Table")).unwrap();
+
+        let ctab_bind_group_layout = ctab_texture.bind_group_layout;
+        let ctab_bind_group = ctab_texture.bind_group;
+
+    
         // let diffuse_bytes = include_bytes!("happy-tree.png");
         // let diffuse_texture =
         //     texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png").unwrap();
 
-        let texture_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                ],
-                label: Some("texture_bind_group_layout"),
-            });
+        // let texture_bind_group_layout =
+        //     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        //         entries: &[
+        //             wgpu::BindGroupLayoutEntry {
+        //                 binding: 0,
+        //                 visibility: wgpu::ShaderStages::FRAGMENT,
+        //                 ty: wgpu::BindingType::Texture {
+        //                     multisampled: false,
+        //                     view_dimension: wgpu::TextureViewDimension::D2,
+        //                     sample_type: wgpu::TextureSampleType::Float { filterable: true },
+        //                 },
+        //                 count: None,
+        //             },
+        //             wgpu::BindGroupLayoutEntry {
+        //                 binding: 1,
+        //                 visibility: wgpu::ShaderStages::FRAGMENT,
+        //                 ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+        //                 count: None,
+        //             },
+        //         ],
+        //         label: Some("texture_bind_group_layout"),
+        //     });
 
-        let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &texture_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
-                },
-            ],
-            label: Some("diffuse_bind_group"),
-        });
+        // let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        //     layout: &texture_bind_group_layout,
+        //     entries: &[
+        //         wgpu::BindGroupEntry {
+        //             binding: 0,
+        //             resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
+        //         },
+        //         wgpu::BindGroupEntry {
+        //             binding: 1,
+        //             resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
+        //         },
+        //     ],
+        //     label: Some("diffuse_bind_group"),
+        // });
 
         let camera = Camera {
             eye: (0.0, 1.0, 2.0).into(),
@@ -376,7 +401,10 @@ impl State {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&texture_bind_group_layout, &camera_bind_group_layout],
+                bind_group_layouts: &[
+                    &diffuse_bind_group_layout,
+                    &camera_bind_group_layout,
+                    &ctab_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -386,7 +414,6 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-// Change this!
                 buffers: &[vertex::Vertex::desc()],
             },
             fragment: Some(wgpu::FragmentState {
@@ -450,8 +477,9 @@ impl State {
             vertex_buffer,
             index_buffer,
             num_indices,
-            diffuse_texture,
+            // diffuse_texture,
             diffuse_bind_group,
+            ctab_bind_group,
             camera,
             camera_controller,
             camera_buffer,
@@ -519,6 +547,7 @@ impl State {
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
             render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
+            render_pass.set_bind_group(2, &self.ctab_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
