@@ -17,9 +17,12 @@ struct Cli {
     #[arg(value_enum, short, long)]
     /// Face culling mode
     cull_mode: Option<Face>,
-    #[arg(value_enum, short, long, default_value_t=PolygonMode::Fill)]
+    // #[arg(value_enum, short, long, default_value_t=PolygonMode::Fill)]
+    // /// Controls the way each polygon is rasterized
+    // polygon_mode: PolygonMode,
+    #[arg(value_enum, short, long, default_value_t=DisplayMode::Both)]
     /// Controls the way each polygon is rasterized
-    polygon_mode: PolygonMode,
+    display_mode: DisplayMode,
 }
 
 impl Cli {
@@ -36,13 +39,13 @@ impl Cli {
             Some(Face::Back) => Some(wgpu::Face::Back)
         }
     }
-    fn polygon_mode(&self) -> wgpu::PolygonMode {
-        match self.polygon_mode {
-            PolygonMode::Fill => wgpu::PolygonMode::Fill,
-            PolygonMode::Line => wgpu::PolygonMode::Line,
-            PolygonMode::Point => wgpu::PolygonMode::Point
-        }
-    }
+    // fn polygon_mode(&self) -> wgpu::PolygonMode {
+    //     match self.polygon_mode {
+    //         PolygonMode::Fill => wgpu::PolygonMode::Fill,
+    //         PolygonMode::Line => wgpu::PolygonMode::Line,
+    //         PolygonMode::Point => wgpu::PolygonMode::Point
+    //     }
+    // }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug, Default)]
@@ -58,12 +61,38 @@ pub enum Face {
     Back
 }
 
+// #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug, Default)]
+// pub enum PolygonMode {
+//     #[default]
+//     Fill,
+//     Line,
+//     Point
+// }
+
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug, Default)]
-pub enum PolygonMode {
+pub enum DisplayMode {
+    WireFrame,
+    Texture,
+    Colors,
     #[default]
-    Fill,
-    Line,
-    Point
+    Both,
+}
+
+impl DisplayMode {
+    pub fn frag_entry(&self) -> &str {
+        match &self {
+            DisplayMode::WireFrame => "fs_wire",
+            DisplayMode::Texture => "fs_texture",
+            DisplayMode::Colors => "fs_colors",
+            DisplayMode::Both => "fs_both",
+        }
+    }
+    pub fn polygon_mode(&self) -> wgpu::PolygonMode {
+        match &self {
+            DisplayMode::WireFrame => wgpu::PolygonMode::Line,
+            _ => wgpu::PolygonMode::Fill,
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug, Default)]
@@ -110,6 +139,7 @@ pub struct Args {
     pub front_face: wgpu::FrontFace,
     pub cull_mode: Option<wgpu::Face>,
     pub polygon_mode: wgpu::PolygonMode,
+    pub frag_entry: String,
 }
 
 impl Args {
@@ -120,7 +150,8 @@ impl Args {
             geometry: cli.geometry,
             front_face: cli.front_face(),
             cull_mode: cli.cull_mode(),
-            polygon_mode: cli.polygon_mode(),
+            polygon_mode: cli.display_mode.polygon_mode(),
+            frag_entry: String::from(cli.display_mode.frag_entry()),
         }
     }
 }

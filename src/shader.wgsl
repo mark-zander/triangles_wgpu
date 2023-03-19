@@ -1,6 +1,7 @@
 // Vertex shader
 
 struct CameraUniform {
+    view_pos: vec4<f32>,
     view_proj: mat4x4<f32>,
 };
 @group(1) @binding(0)
@@ -55,8 +56,9 @@ var ctab_tex: texture_1d<f32>;
 @group(2)@binding(1)
 var ctab_samp: sampler;
 
+// Both wire frame and color
 @fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+fn fs_both(in: VertexOutput) -> @location(0) vec4<f32> {
     // return textureSample(t_diffuse, s_diffuse, in.tex_coords);
     // return vec4<f32>(1.0, 1.0, 1.0, 1.0);
     let tex: vec4<f32> = 
@@ -65,3 +67,40 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         textureSample(ctab_tex, ctab_samp, in.grey);
     return tex * tex.a + color * (1.0 - tex.a);
 }
+// Only wire frame texture
+@fragment
+fn fs_texture(in: VertexOutput) -> @location(0) vec4<f32> {
+    return textureSample(t_diffuse, s_diffuse, in.tex_coords);
+    // let tex: vec4<f32> = 
+    //     textureSample(t_diffuse, s_diffuse, in.tex_coords);
+    // let color: vec4<f32> =
+    //     textureSample(ctab_tex, ctab_samp, in.grey);
+    // return tex * tex.a + color * (1.0 - tex.a);
+}
+
+// Only color
+@fragment
+fn fs_colors(in: VertexOutput) -> @location(0) vec4<f32> {
+    // return textureSample(t_diffuse, s_diffuse, in.tex_coords);
+    // return vec4<f32>(1.0, 1.0, 1.0, 1.0);
+    // let tex: vec4<f32> = 
+    //     textureSample(t_diffuse, s_diffuse, in.tex_coords);
+    // let color: vec4<f32> =
+    //     textureSample(ctab_tex, ctab_samp, in.grey);
+    // return tex * tex.a + color * (1.0 - tex.a);
+    return textureSample(ctab_tex, ctab_samp, in.grey);
+}
+
+// Hardware wire frame
+@fragment
+fn fs_wire(in: VertexOutput) -> @location(0) vec4<f32> {
+    // return textureSample(t_diffuse, s_diffuse, in.tex_coords);
+    return vec4<f32>(1.0, 1.0, 1.0, 1.0);
+    // let tex: vec4<f32> = 
+    //     textureSample(t_diffuse, s_diffuse, in.tex_coords);
+    // let color: vec4<f32> =
+    //     textureSample(ctab_tex, ctab_samp, in.grey);
+    // return tex * tex.a + color * (1.0 - tex.a);
+    // return textureSample(ctab_tex, ctab_samp, in.grey);
+}
+
