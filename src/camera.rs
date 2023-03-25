@@ -87,6 +87,26 @@ impl Projection {
     }
 }
 
+pub struct ModelView {
+    x_theta: Rad<f32>,
+    y_theta: Rad<f32>,
+    // mat: Matrix4<f32>,
+}
+
+impl ModelView {
+    pub fn new<F: Into<Rad<f32>>>(x_theta: F, y_theta: F) -> Self {
+        Self {
+            x_theta: x_theta.into(),
+            y_theta: y_theta.into(),
+        }
+    }
+
+    pub fn calc_matrix(&self) -> Matrix4<f32> {
+        OPENGL_TO_WGPU_MATRIX * Matrix4::from_angle_x(self.x_theta) *
+            Matrix4::from_angle_y(self.y_theta)
+    }
+}
+
 #[derive(Debug)]
 pub struct CameraController {
     amount_left: f32,
@@ -119,22 +139,69 @@ impl CameraController {
         }
     }
 
+    // pub fn process_keyboard(&mut self, key: VirtualKeyCode, state: ElementState) -> bool{
+    //     let amount = if state == ElementState::Pressed { 1.0 } else { 0.0 };
+    //     match key {
+    //         VirtualKeyCode::W | VirtualKeyCode::Up => {
+    //             self.amount_forward = amount;
+    //             true
+    //         }
+    //         VirtualKeyCode::S | VirtualKeyCode::Down => {
+    //             self.amount_backward = amount;
+    //             true
+    //         }
+    //         VirtualKeyCode::A | VirtualKeyCode::Left => {
+    //             self.amount_left = amount;
+    //             true
+    //         }
+    //         VirtualKeyCode::D | VirtualKeyCode::Right => {
+    //             self.amount_right = amount;
+    //             true
+    //         }
+    //         VirtualKeyCode::Space => {
+    //             self.amount_up = amount;
+    //             true
+    //         }
+    //         VirtualKeyCode::LShift => {
+    //             self.amount_down = amount;
+    //             true
+    //         }
+    //         _ => false,
+    //     }
+    // }
+
     pub fn process_keyboard(&mut self, key: VirtualKeyCode, state: ElementState) -> bool{
         let amount = if state == ElementState::Pressed { 1.0 } else { 0.0 };
         match key {
-            VirtualKeyCode::W | VirtualKeyCode::Up => {
+            VirtualKeyCode::Up => {
+                self.rotate_vertical = amount;
+                true
+            }
+            VirtualKeyCode::Down => {
+                self.rotate_vertical = -amount;
+                true
+            }
+            VirtualKeyCode::Left => {
+                self.rotate_horizontal = amount;
+                true
+            }
+            VirtualKeyCode::Right => {
+                self.rotate_horizontal = -amount;
+                true
+            }
+            VirtualKeyCode::W => {
                 self.amount_forward = amount;
                 true
             }
-            VirtualKeyCode::S | VirtualKeyCode::Down => {
+            VirtualKeyCode::S => {
                 self.amount_backward = amount;
                 true
             }
-            VirtualKeyCode::A | VirtualKeyCode::Left => {
+            VirtualKeyCode::A => {
                 self.amount_left = amount;
                 true
             }
-            VirtualKeyCode::D | VirtualKeyCode::Right => {
+            VirtualKeyCode::D => {
                 self.amount_right = amount;
                 true
             }
@@ -166,6 +233,17 @@ impl CameraController {
         };
     }
 
+    pub fn update_model_view(
+        &mut self, model_view: &mut ModelView, dt: Duration
+    ) {
+        let dt = dt.as_secs_f32();
+
+        model_view.x_theta
+            += Rad(-self.rotate_vertical) * self.sensitivity * dt;
+        model_view.y_theta
+            += Rad(self.rotate_horizontal) * self.sensitivity * dt;
+    }
+
     pub fn update_camera(&mut self, camera: &mut Camera, dt: Duration) {
         let dt = dt.as_secs_f32();
 
@@ -190,14 +268,14 @@ impl CameraController {
         camera.position.y += (self.amount_up - self.amount_down) * self.speed * dt;
 
         // Rotate
-        camera.yaw += Rad(self.rotate_horizontal) * self.sensitivity * dt;
-        camera.pitch += Rad(-self.rotate_vertical) * self.sensitivity * dt;
+        // camera.yaw += Rad(self.rotate_horizontal) * self.sensitivity * dt;
+        // camera.pitch += Rad(-self.rotate_vertical) * self.sensitivity * dt;
 
         // If process_mouse isn't called every frame, these values
         // will not get set to zero, and the camera will rotate
         // when moving in a non cardinal direction.
-        self.rotate_horizontal = 0.0;
-        self.rotate_vertical = 0.0;
+        // self.rotate_horizontal = 0.0;
+        // self.rotate_vertical = 0.0;
 
         // Keep the camera's angle from going too high/low.
         if camera.pitch < -Rad(SAFE_FRAC_PI_2) {
@@ -207,3 +285,5 @@ impl CameraController {
         }
     }
 }
+
+

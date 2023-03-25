@@ -63,11 +63,15 @@ impl CameraUniform {
     }
 
     fn update_view_proj(
-        &mut self, camera: &camera::Camera, projection: &camera::Projection
+        &mut self,
+        camera: &camera::Camera,
+        projection: &camera::Projection,
+        model_view: &camera::ModelView
     ) {
         // self.view_proj = (OPENGL_TO_WGPU_MATRIX * camera.build_view_projection_matrix()).into();
         self.view_position = camera.position.to_homogeneous().into();
-        self.view_proj = (projection.calc_matrix() * camera.calc_matrix()).into();
+        self.view_proj = (projection.calc_matrix() * camera.calc_matrix()
+            * model_view.calc_matrix()).into();
     }
 }
 
@@ -189,6 +193,7 @@ struct State {
     // NEW!
     camera: camera::Camera,
     projection: camera::Projection,
+    model_view: camera::ModelView,
     camera_controller: camera::CameraController,
     mouse_pressed: bool,
     camera_uniform: CameraUniform,
@@ -361,6 +366,8 @@ impl State {
         // });
 
         // let camera = camera::Camera::new((0.0, 5.0, 10.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
+        let model_view = camera::ModelView::new(
+            cgmath::Deg(0.0), cgmath::Deg(0.0));
         let camera = camera::Camera::new(
             (0.0, 0.0, 3.0), cgmath::Deg(-90.0), cgmath::Deg(0.0));
         let projection = camera::Projection::new(
@@ -370,7 +377,7 @@ impl State {
         // ...
 
         let mut camera_uniform = CameraUniform::new();
-        camera_uniform.update_view_proj(&camera, &projection); // UPDATED!
+        camera_uniform.update_view_proj(&camera, &projection, &model_view); // UPDATED!
 
         // let camera = Camera {
         //     eye: (0.0, 1.0, 2.0).into(),
@@ -514,6 +521,7 @@ impl State {
             depth,
             camera,
             projection,
+            model_view,
             camera_controller,
             camera_buffer,
             camera_bind_group,
@@ -546,7 +554,8 @@ impl State {
                 ..
             } => self.camera_controller.process_keyboard(*key, *state),
             WindowEvent::MouseWheel { delta, .. } => {
-                self.camera_controller.process_scroll(delta);
+                // self.camera_controller.process_scroll(delta);
+                // self.camera_controller.process_mouse(delta, delta);
                 true
             }
             WindowEvent::MouseInput {
@@ -562,8 +571,10 @@ impl State {
     }
 
     fn update(&mut self, dt: std::time::Duration) {
+        self.camera_controller.update_model_view(&mut self.model_view, dt);
         self.camera_controller.update_camera(&mut self.camera, dt);
-        self.camera_uniform.update_view_proj(&self.camera, &self.projection);
+        self.camera_uniform.update_view_proj(&self.camera, &self.projection,
+            &self.model_view);
         // println!("{:?}", self.camera_uniform);
         self.queue.write_buffer(
             &self.camera_buffer,
